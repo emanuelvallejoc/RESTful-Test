@@ -26,7 +26,7 @@ import static org.hamcrest.Matchers.*;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class TestWidgetRestController {
+class WidgetRestControllerTest {
 
     @MockBean
     private WidgetService service;
@@ -89,6 +89,66 @@ class TestWidgetRestController {
                 .andExpect(jsonPath("$.name", is("New Widget")))
                 .andExpect(jsonPath("$.description", is("This is my widget")))
                 .andExpect(jsonPath("$.version", is(1)));
+    }
+
+
+    @Test
+    @DisplayName("PUT /rest/widget/{id}")
+    void testEditWidget() throws Exception {
+
+        Widget widgetToPut = new Widget("Edit Widget", "This is my widget",1);
+        Widget widgetToEdit = new Widget(1L, "New Widget", "This is my widget", 1);
+        Widget widgetToReturn = new Widget(1L, "Edit Widget", "This is my widget edit", 2);
+
+        when(service.findById(1L)).thenReturn(Optional.of(widgetToEdit));
+        when(service.save(any(Widget.class))).thenReturn(widgetToReturn);
+
+        mockMvc.perform(put("/rest/widget/{id}", 1L)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(widgetToPut))
+                        .header(HttpHeaders.IF_MATCH, 1))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(header().string(HttpHeaders.LOCATION, "/rest/widget/1"))
+                .andExpect(header().string(HttpHeaders.ETAG, "\"2\""))
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.name", is("Edit Widget")))
+                .andExpect(jsonPath("$.description", is("This is my widget edit")))
+                .andExpect(jsonPath("$.version", is(2)));
+
+    }
+
+    @Test
+    @DisplayName("PUT /rest/widget/{id} - NOT FOUND")
+    void testEditWidgetNotFound() throws Exception {
+
+        Widget widgetToPut = new Widget("Edit Widget", "This is my widget",1);
+
+        when(service.findById(1L)).thenReturn(Optional.empty());
+
+        mockMvc.perform(put("/rest/widget/{id}", 1L)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(asJsonString(widgetToPut))
+                        .header(HttpHeaders.IF_MATCH, 1))
+                .andExpect(status().isNotFound());
+
+    }
+
+    @Test
+    @DisplayName("GET /rest/widget/{id}")
+    void testGetWidgetById() throws Exception {
+        Widget widget = new Widget(1L, "Widget", "This is my widget", 1);
+        when(service.findById(1L)).thenReturn(Optional.of(widget));
+
+        mockMvc.perform(get("/rest/widget/{id}", 1L))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id", is(1)))
+                .andExpect(jsonPath("$.name", is("Widget")))
+                .andExpect(jsonPath("$.description", is("This is my widget")))
+                .andExpect(jsonPath("$.version", is(1)));
+
+
     }
 
     static String asJsonString(final Object obj) {
